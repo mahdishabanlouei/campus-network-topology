@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Network Design — Interactive Topology</title>
+<style>
+.publication-note{background:#eaf2ff;color:#173967;text-align:center;padding:7px 12px;font:600 12px system-ui,sans-serif;border-bottom:1px solid #cbdcf6}
+[data-theme="dark"] .publication-note{background:#17223b;color:#c6d8ff;border-color:#354464}
+/* ── RESET & BASE ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8fafc;--bg2:#f1f5f9;--bg3:#e2e8f0;--bg4:#cbd5e1;
+  --surface:#ffffff;--surface2:#f8fafc;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#334155;--text3:#64748b;--text4:#94a3b8;
+  --accent:#2563eb;--accent2:#1d4ed8;--accent-light:#eff6ff;
+  --red:#ef4444;--red-light:#fef2f2;
+  --green:#10b981;--green-light:#ecfdf5;
+  --amber:#f59e0b;--amber-light:#fffbeb;
+  --purple:#8b5cf6;--purple-light:#f5f3ff;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.05);
+  --shadow-lg:0 10px 15px rgba(0,0,0,.08),0 4px 6px rgba(0,0,0,.05);
+  --r:8px;--r-lg:12px;--r-xl:16px;
+  --font-en:'Inter','SF Pro Display',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+
+  --c-internet:#60a5fa;--c-edge:#f87171;--c-core:#a78bfa;
+  --c-dist:#34d399;--c-access:#fb923c;--c-wireless:#f472b6;
+  --c-servers:#38bdf8;--c-clients:#94a3b8;
+
+  --topo-scale:1;
+  --panel-w:380px;
+}
+[data-theme="dark"]{
+  --bg:#0b1120;--bg2:#0f172a;--bg3:#1e293b;--bg4:#334155;
+  --surface:#1e293b;--surface2:#0f172a;
+  --border:#334155;--border2:#475569;
+  --text:#f1f5f9;--text2:#cbd5e1;--text3:#94a3b8;--text4:#64748b;
+  --accent:#3b82f6;--accent2:#60a5fa;--accent-light:#1e3a5f;
+  --red-light:#2d1515;--green-light:#0d2b20;--amber-light:#2d2006;--purple-light:#1f1535;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);
+  --shadow-md:0 4px 6px rgba(0,0,0,.3),0 2px 4px rgba(0,0,0,.2);
+  --shadow-lg:0 10px 15px rgba(0,0,0,.35),0 4px 6px rgba(0,0,0,.2);
+}
+
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{
+  font-family:var(--font-en);
+  background:var(--bg);color:var(--text);
+  min-height:100vh;
+  transition:background .25s,color .25s;
+  overflow-x:hidden;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── FONTS ────────────────────────────────────────────── */
+.en{font-family:var(--font-en);direction:ltr;display:inline-block}
+.mono{font-family:var(--mono);font-size:.85em}
+h1,h2,h3,h4,h5,h6{line-height:1.3;font-weight:700}
+
+/* ── LAYOUT ───────────────────────────────────────────── */
+.app-shell{display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  position:sticky;top:0;z-index:200;
+  display:flex;align-items:center;gap:12px;
+  padding:0 20px;height:56px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  box-shadow:var(--shadow);
+}
+.topbar-brand{
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
+}
+.topbar-brand .logo{
+  width:32px;height:32px;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#fff;flex-shrink:0;
+}
+.topbar-brand .brand-text{
+  font-size:.95rem;font-weight:700;color:var(--text);
+  white-space:nowrap;
+}
+.topbar-brand .brand-sub{font-size:.7rem;color:var(--text3);font-weight:400;display:block}
+.topbar-spacer{flex:1}
+.topbar-controls{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.btn-icon{
+  width:34px;height:34px;border:none;cursor:pointer;
+  border-radius:var(--r);background:var(--bg2);color:var(--text2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;transition:background .15s,color .15s;
+  flex-shrink:0;
+}
+.btn-icon:hover{background:var(--bg3);color:var(--text)}
+
+.main-content{
+  display:flex;flex:1;overflow:hidden;height:calc(100vh - 56px);
+}
+.sidebar{order:0}
+.topo-container{order:1}
+.detail-panel{order:2}
+
+/* ── SIDEBAR NAV ──────────────────────────────────────── */
+.sidebar{
+  width:52px;background:var(--surface2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:4px;flex-shrink:0;
+  z-index:100;
+}
+.sidebar-btn{
+  width:40px;height:40px;border:none;cursor:pointer;
+  border-radius:var(--r);background:transparent;color:var(--text3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;transition:all .15s;position:relative;
+}
+.sidebar-btn:hover,.sidebar-btn.active{background:var(--bg3);color:var(--accent)}
+.sidebar-btn .tooltip{
+  position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);
+  background:var(--text);color:var(--surface);
+  font-family:var(--font-en);font-size:.7rem;
+  padding:4px 8px;border-radius:5px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .15s;
+  z-index:300;
+}
+.sidebar-btn:hover .tooltip{opacity:1}
+
+/* ── TOPOLOGY CANVAS ──────────────────────────────────── */
+.topo-container{
+  flex:1;overflow:hidden;position:relative;
+  background:var(--bg2);
+}
+.topo-canvas-wrap{
+  width:100%;height:100%;cursor:grab;overflow:hidden;user-select:none;
+}
+.topo-canvas-wrap.panning{cursor:grabbing}
+.topo-svg{display:block;transition:none}
+
+/* layer zones */
+.layer-zone{fill:transparent;stroke:transparent}
+
+/* links */
+.link{stroke:var(--text4);stroke-width:1.5;fill:none;opacity:.8}
+.link.wan{stroke:#60a5fa;stroke-width:2;stroke-dasharray:6 3}
+.link.p2p{stroke:#f87171;stroke-width:1.5}
+.link.lacp{stroke:#a78bfa;stroke-width:3;stroke-dasharray:8 2}
+.link.l3{stroke:#a78bfa;stroke-width:1.5}
+.link.trunk{stroke:#34d399;stroke-width:1.5}
+.link.capwap{stroke:#f472b6;stroke-width:1.5;stroke-dasharray:4 2}
+.link.access{stroke:var(--text4);stroke-width:1}
+.link.redundant{stroke:var(--text4);stroke-width:1;stroke-dasharray:3 2;opacity:.45}
+.link.highlighted{stroke:var(--accent);stroke-width:2.5;opacity:1}
+.link.dimmed{opacity:.08}
+
+/* nodes */
+.node-group{cursor:pointer}
+.node-bg{
+  rx:6;ry:6;
+  transition:filter .15s;
+}
+.node-group:hover .node-bg{filter:brightness(1.08)}
+.node-group.selected .node-bg{filter:brightness(1.12)}
+.node-group.dimmed{opacity:.15}
+.node-icon{font-size:16px;dominant-baseline:central;text-anchor:middle;pointer-events:none}
+.node-label{
+  font-family:var(--font-en);font-size:9.5px;font-weight:600;
+  fill:var(--text2);text-anchor:middle;dominant-baseline:hanging;
+  pointer-events:none;
+}
+[data-theme="dark"] .node-label{fill:#94a3b8}
+.node-ip{
+  font-family:var(--font-en);font-size:7.5px;
+  fill:var(--text4);text-anchor:middle;dominant-baseline:hanging;
+  pointer-events:none;
+}
+.link-label{
+  font-family:var(--font-en);font-size:7.5px;
+  fill:var(--text3);text-anchor:middle;dominant-baseline:central;
+  pointer-events:none;
+}
+[data-theme="dark"] .link-label{fill:#475569}
+
+/* layer band labels */
+.layer-band-label{
+  font-family:var(--font-en);font-size:10px;font-weight:700;
+  fill:var(--text4);dominant-baseline:central;
+  pointer-events:none;letter-spacing:.04em;text-anchor:start;
+}
+
+/* minimap */
+.minimap{
+  position:absolute;bottom:12px;left:12px;
+  width:140px;height:90px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;
+  box-shadow:var(--shadow-md);opacity:.85;
+  transition:opacity .15s;
+}
+.minimap:hover{opacity:1}
+.minimap-viewport{
+  position:absolute;border:1px solid var(--accent);
+  background:rgba(37,99,235,.08);
+  pointer-events:none;transition:all .05s;
+}
+
+/* zoom controls */
+.zoom-controls{
+  position:absolute;bottom:12px;right:12px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.zoom-btn{
+  width:30px;height:30px;border:1px solid var(--border);
+  background:var(--surface);border-radius:var(--r);
+  cursor:pointer;font-size:16px;font-weight:600;
+  color:var(--text2);display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);transition:background .1s;
+}
+.zoom-btn:hover{background:var(--bg3)}
+
+/* search */
+.search-bar{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:24px;padding:6px 14px;
+  box-shadow:var(--shadow-md);
+  min-width:260px;max-width:360px;width:90%;
+}
+.search-bar input{
+  border:none;background:transparent;outline:none;
+  font-family:var(--font-en);font-size:.83rem;
+  color:var(--text);width:100%;
+}
+.search-bar input::placeholder{color:var(--text4)}
+.search-results{
+  position:absolute;top:calc(100% + 4px);right:0;left:0;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);box-shadow:var(--shadow-lg);
+  overflow:hidden;max-height:200px;overflow-y:auto;
+  display:none;
+}
+.search-result-item{
+  padding:8px 14px;cursor:pointer;
+  font-family:var(--font-en);font-size:.82rem;color:var(--text2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+  transition:background .1s;
+}
+.search-result-item:last-child{border-bottom:none}
+.search-result-item:hover{background:var(--bg2)}
+.search-result-item .sri-badge{
+  font-size:.68rem;padding:2px 6px;border-radius:4px;
+  background:var(--bg3);color:var(--text3);flex-shrink:0;
+}
+
+/* layer filter pills */
+.layer-filters{
+  position:absolute;top:12px;right:12px;
+  display:flex;flex-direction:column;gap:4px;
+  max-height:calc(100vh - 120px);overflow-y:auto;
+}
+.layer-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:20px;
+  border:1px solid;cursor:pointer;
+  font-size:.72rem;font-weight:600;
+  transition:opacity .15s,transform .1s;
+  white-space:nowrap;user-select:none;
+  background:var(--surface);
+}
+.layer-pill:hover{transform:translateX(2px)}
+.layer-pill.hidden{opacity:.35}
+.layer-pill .lp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── DETAIL PANEL ─────────────────────────────────────── */
+.detail-panel{
+  width:var(--panel-w);min-width:var(--panel-w);
+  background:var(--surface);
+  border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  transition:transform .25s,opacity .25s;
+  position:relative;z-index:50;
+}
+.detail-panel.hidden{
+  transform:translateX(var(--panel-w));
+  opacity:0;pointer-events:none;
+  position:absolute;right:0;
+}
+.panel-header{
+  padding:16px 20px 12px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.panel-type-badge{
+  font-size:.68rem;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;padding:2px 8px;border-radius:4px;
+  display:inline-block;margin-bottom:8px;
+}
+.panel-title{font-size:1.1rem;font-weight:700;color:var(--text);font-family:var(--font-en)}
+.panel-subtitle{font-size:.78rem;color:var(--text3);margin-top:3px;font-family:var(--font-en);line-height:1.5}
+.panel-body{flex:1;overflow-y:auto;padding:16px 20px}
+.panel-close{
+  position:absolute;top:12px;right:12px;
+  width:28px;height:28px;border:none;
+  background:var(--bg3);border-radius:50%;
+  cursor:pointer;color:var(--text3);font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .1s;
+}
+.panel-close:hover{background:var(--bg4);color:var(--text)}
+
+.detail-section{margin-bottom:16px}
+.detail-section-title{
+  font-size:.68rem;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--text4);
+  margin-bottom:8px;padding-bottom:4px;
+  border-bottom:1px solid var(--border);
+}
+.detail-row{
+  display:flex;gap:8px;padding:5px 0;
+  border-bottom:1px solid var(--bg3);
+  font-size:.8rem;line-height:1.5;
+}
+.detail-row:last-child{border-bottom:none}
+.detail-key{color:var(--text3);flex-shrink:0;min-width:90px;font-family:var(--font-en)}
+.detail-val{color:var(--text2);font-family:var(--font-en);word-break:break-word}
+.detail-val.mono{background:var(--bg2);padding:1px 5px;border-radius:3px;font-size:.78rem}
+
+.tag-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tag{
+  font-size:.7rem;padding:2px 8px;border-radius:4px;
+  background:var(--bg3);color:var(--text2);
+  font-family:var(--font-en);
+}
+.tag.vlan{background:var(--accent-light);color:var(--accent)}
+[data-theme="dark"] .tag.vlan{background:var(--accent-light);color:var(--accent2)}
+.tag.protocol{background:var(--green-light);color:var(--green)}
+.tag.warning{background:var(--amber-light);color:var(--amber)}
+
+.conn-item{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 0;border-bottom:1px solid var(--bg3);
+  font-size:.78rem;cursor:pointer;transition:color .1s;
+}
+.conn-item:hover{color:var(--accent)}
+.conn-item:last-child{border-bottom:none}
+.conn-arrow{color:var(--text4);flex-shrink:0}
+.conn-label{font-family:var(--font-en);color:var(--text2);flex:1}
+.conn-type{font-size:.68rem;color:var(--text4);flex-shrink:0;font-family:var(--font-en)}
+
+.ssid-card{
+  border:1px solid var(--border);border-radius:var(--r);
+  padding:10px 12px;margin-bottom:8px;
+  background:var(--surface2);
+}
+.ssid-card .ssid-name{font-weight:700;font-family:var(--font-en);font-size:.85rem;color:var(--text)}
+.ssid-card .ssid-meta{font-size:.73rem;color:var(--text3);font-family:var(--font-en);margin-top:3px;line-height:1.6}
+
+.warning-note{
+  background:var(--amber-light);border:1px solid rgba(245,158,11,.3);
+  border-radius:var(--r);padding:8px 12px;
+  font-size:.76rem;color:var(--text2);line-height:1.6;
+  margin-top:8px;
+}
+[data-theme="dark"] .warning-note{color:var(--text2)}
+.warning-note::before{content:"⚠ ";font-size:.85rem}
+
+/* ── TABS ─────────────────────────────────────────────── */
+.tab-bar{
+  display:flex;border-bottom:1px solid var(--border);
+  background:var(--surface2);flex-shrink:0;overflow-x:auto;
+}
+.tab-btn{
+  padding:10px 16px;border:none;background:transparent;
+  font-family:var(--font-en);font-size:.8rem;font-weight:600;
+  color:var(--text3);cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;
+}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn:hover{color:var(--text)}
+.tab-content{display:none;flex:1;overflow-y:auto}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── VIEWS (Overview, LinkedIn, VLANs) ─────────────────── */
+.view-panel{
+  position:absolute;inset:0;background:var(--bg);
+  overflow-y:auto;z-index:150;padding:32px;
+  display:none;
+  animation:fadeIn .2s ease;
+}
+.view-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.view-close{
+  position:fixed;top:68px;left:24px;
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--surface);
+  cursor:pointer;font-family:var(--font-en);font-size:.8rem;color:var(--text2);
+  box-shadow:var(--shadow);transition:background .1s;z-index:200;
+}
+.view-close:hover{background:var(--bg3)}
+
+/* overview */
+.overview-hero{
+  max-width:900px;margin:0 auto 40px;text-align:center;
+}
+.overview-hero h1{font-size:2rem;color:var(--text);margin-bottom:12px;line-height:1.2}
+.overview-hero p{font-size:1rem;color:var(--text2);line-height:1.7;max-width:680px;margin:0 auto}
+.overview-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;max-width:900px;margin:0 auto 32px}
+.ov-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:16px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.ov-card .ov-num{font-size:1.6rem;font-weight:800;font-family:var(--font-en);color:var(--accent)}
+.ov-card .ov-label{font-size:.78rem;color:var(--text3);line-height:1.4}
+.arch-flow{
+  max-width:900px;margin:0 auto 32px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:24px;
+}
+.arch-flow h2{font-size:1.1rem;color:var(--text);margin-bottom:16px}
+.flow-row{
+  display:flex;align-items:center;gap:0;
+  font-size:.82rem;flex-wrap:wrap;margin-bottom:12px;
+}
+.flow-node{
+  padding:6px 12px;border-radius:6px;font-family:var(--font-en);
+  font-weight:600;font-size:.78rem;white-space:nowrap;
+}
+.flow-arrow{color:var(--text4);font-size:1.1rem;padding:0 4px}
+.design-decisions{max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.dd-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:16px;
+}
+.dd-card h4{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px}
+.dd-card p{font-size:.78rem;color:var(--text3);line-height:1.6}
+
+/* VLAN table */
+.vlan-table{width:100%;border-collapse:collapse;font-size:.82rem;font-family:var(--font-en);max-width:900px;margin:0 auto}
+.vlan-table th{background:var(--bg3);color:var(--text3);font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.vlan-table td{padding:8px 12px;border-bottom:1px solid var(--bg3);color:var(--text2);vertical-align:top}
+.vlan-table tr:hover td{background:var(--bg2)}
+.vlan-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+/* LinkedIn summary */
+.li-article{max-width:680px;margin:0 auto;padding-bottom:40px}
+.li-article h1{font-size:1.5rem;color:var(--text);margin-bottom:8px}
+.li-article .li-meta{color:var(--text3);font-size:.83rem;margin-bottom:24px}
+.li-article p{font-size:.9rem;color:var(--text2);line-height:1.8;margin-bottom:16px}
+.li-article h2{font-size:1rem;font-weight:700;color:var(--text);margin:24px 0 8px}
+.li-skills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.li-skill{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.75rem;color:var(--text2);font-family:var(--font-en)}
+.li-copy-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:var(--r);
+  background:var(--accent);color:#fff;border:none;
+  cursor:pointer;font-size:.8rem;font-family:var(--font-en);
+  margin-top:16px;transition:background .15s;
+}
+.li-copy-btn:hover{background:var(--accent2)}
+
+/* ── RESPONSIVE ───────────────────────────────────────── */
+@media(max-width:900px){
+  :root{--panel-w:100vw}
+  .layer-filters{display:none}
+  .minimap{display:none}
+  .sidebar{display:none}
+  .detail-panel{position:fixed;bottom:0;right:0;left:0;top:auto;width:100%;min-width:0;height:65vh;border-radius:16px 16px 0 0;border-left:none;border-right:none;border-top:1px solid var(--border)}
+  .detail-panel.hidden{transform:translateY(100%);right:0}
+  .topbar-brand .brand-sub{display:none}
+  .view-close{top:auto;bottom:calc(65vh + 8px);left:12px}
+}
+@media(max-width:600px){
+  .overview-hero h1{font-size:1.4rem}
+  .view-panel{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ SHELL ═══════════════════════════ -->
+<div class="app-shell">
+  <div class="publication-note" role="note">Portfolio design study · Example addresses and configurations · No deployment or performance claims</div>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="logo">🌐</div>
+      <div>
+        <div class="brand-text">Campus Network Topology</div>
+        <span class="brand-sub">Interactive design study</span>
+      </div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-controls">
+      <button class="btn-icon" id="btn-overview" title="Architecture Overview">📊</button>
+      <button class="btn-icon" id="btn-vlans" title="VLAN Reference">🏷</button>
+      <button class="btn-icon" id="btn-linkedin" title="LinkedIn Summary">💼</button>
+      <button class="btn-icon" id="btn-theme" title="Toggle dark / light mode">🌙</button>
+      <button class="btn-icon" id="btn-fit" title="Fit topology to window">⊞</button>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <!-- DETAIL PANEL (right, RTL first child) -->
+    <div class="detail-panel hidden" id="detail-panel">
+      <button class="panel-close" id="panel-close">✕</button>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="info">Device Info</button>
+        <button class="tab-btn" data-tab="conns">Connections</button>
+        <button class="tab-btn" data-tab="config">Example Config</button>
+      </div>
+      <div class="tab-content active" id="tab-info">
+        <div class="panel-header" id="panel-header"></div>
+        <div class="panel-body" id="panel-body"></div>
+      </div>
+      <div class="tab-content" id="tab-conns">
+        <div class="panel-body" id="panel-conns"></div>
+      </div>
+      <div class="tab-content" id="tab-config">
+        <div class="panel-body" id="panel-config"></div>
+      </div>
+    </div>
+
+    <!-- TOPOLOGY -->
+    <div class="topo-container" id="topo-container">
+      <!-- search -->
+      <div class="search-bar" id="search-bar">
+        <span style="color:var(--text4);font-size:14px">🔍</span>
+        <input id="search-input" type="text" placeholder="Search device or example IP…" autocomplete="off" spellcheck="false">
+        <div class="search-results" id="search-results"></div>
+      </div>
+
+      <!-- layer filters (desktop) -->
+      <div class="layer-filters" id="layer-filters"></div>
+
+      <!-- SVG canvas -->
+      <div class="topo-canvas-wrap" id="topo-canvas-wrap">
+        <svg id="topo-svg" class="topo-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+            <filter id="shadow">
+              <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".15"/>
+            </filter>
+          </defs>
+          <g id="topo-root">
+            <g id="layer-bands"></g>
+            <g id="link-layer"></g>
+            <g id="link-label-layer"></g>
+            <g id="node-layer"></g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- minimap -->
+      <div class="minimap" id="minimap">
+        <svg id="minimap-svg" width="140" height="90"></svg>
+        <div class="minimap-viewport" id="minimap-viewport"></div>
+      </div>
+
+      <!-- zoom controls -->
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="btn-zoom-in">＋</button>
+        <button class="zoom-btn" id="btn-zoom-out">－</button>
+        <button class="zoom-btn" id="btn-zoom-fit" style="font-size:11px" title="Fit">⊞</button>
+      </div>
+    </div>
+
+    <!-- SIDEBAR NAV -->
+    <nav class="sidebar">
+      <button class="sidebar-btn active" id="nav-topo" title="">🗺<span class="tooltip">Topology</span></button>
+      <button class="sidebar-btn" id="nav-layers" title="">🎨<span class="tooltip">Layer Filters</span></button>
+    </nav>
+  </div>
+
+  <!-- OVERLAY VIEWS -->
+  <div class="view-panel" id="view-overview">
+    <button class="view-close" onclick="closeView('view-overview')">← Back</button>
+    <div class="overview-hero">
+      <h1>Architecture Overview</h1>
+      <p>An interactive campus network design study showing segmentation, routing, security, wireless access, and shared services. The topology and example configurations illustrate design intent; deployment and performance have not been verified.</p>
+    </div>
+    <div class="overview-cards" id="overview-cards"></div>
+    <div class="arch-flow">
+      <h2>Internet Traffic Path</h2>
+      <div class="flow-row" id="flow-row"></div>
+      <div style="font-size:.78rem;color:var(--text3);margin-top:12px;font-family:var(--font-en);line-height:1.7">
+        Proposed traffic path: campus VLANs → core → firewall → edge router → Internet. The guest VLAN is intended for Internet-only access. Addresses and policy examples are illustrative and require validation before deployment.
+      </div>
+    </div>
+    <div style="max-width:900px;margin:0 auto 24px">
+      <h2 style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;">Key Design Decisions</h2>
+      <div class="design-decisions" id="design-decisions"></div>
+    </div>
+  </div>
+
+  <div class="view-panel" id="view-vlans">
+    <button class="view-close" onclick="closeView('view-vlans')">← Back</button>
+    <div style="max-width:900px;margin:0 auto">
+      <h1 style="font-size:1.4rem;margin-bottom:20px;">VLAN Reference</h1>
+      <table class="vlan-table" id="vlan-table"></table>
+    </div>
+  </div>
+
+  <div class="view-panel" id="view-linkedin">
+    <button class="view-close" onclick="closeView('view-linkedin')">← Back</button>
+    <div class="li-article">
+      <h1 style="font-family:var(--font-en)">Campus Network Design — Interactive Study</h1>
+      <div class="li-meta">Network Engineering · Conceptual Design · Interactive Topology</div>
+      <div id="linkedin-body"></div>
+      <button class="li-copy-btn" id="li-copy">📋 Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── TOPOLOGY DATA ────────────────────────────────────────────────────────────
+// Illustrative design data. Device models, addressing, configuration snippets,
+// and operational characteristics are proposals, not verified deployment facts.
+
+const TOPOLOGY = {
+  meta: {
+    name: "University Campus Network",
+    ref: "PORTFOLIO-CONCEPT",
+    version: "1.0",
+    author: "Portfolio design study",
+    description: "Illustrative three-tier campus network with segmented access, wireless, and shared services."
+  },
+
+  layers: [
+    { id: "internet",      label: "Internet Edge",       labelFa: "Internet Edge",      color: "#60a5fa", darkColor: "#3b82f6",  order: 0 },
+    { id: "edge",          label: "Edge / Security",     labelFa: "Edge / Security",       color: "#f87171", darkColor: "#ef4444",  order: 1 },
+    { id: "core",          label: "Core (L3)",           labelFa: "Core (L3)",         color: "#a78bfa", darkColor: "#8b5cf6",  order: 2 },
+    { id: "distribution",  label: "Distribution (L2)",   labelFa: "Distribution (L2)",        color: "#34d399", darkColor: "#10b981",  order: 3 },
+    { id: "access",        label: "Access (L2)",         labelFa: "Access (L2)",       color: "#fb923c", darkColor: "#f97316",  order: 4 },
+    { id: "wireless",      label: "Wireless",            labelFa: "Wireless",            color: "#f472b6", darkColor: "#ec4899",  order: 5 },
+    { id: "servers",       label: "Server Farm",         labelFa: "Server Farm",        color: "#38bdf8", darkColor: "#0ea5e9",  order: 6 },
+    { id: "clients",       label: "Test Clients",        labelFa: "Test Clients", color: "#94a3b8", darkColor: "#64748b",  order: 7 }
+  ],
+
+  vlans: [
+    { id: 10,  name: "Admin",       subnet: "192.168.10.0/24", gateway: "192.168.10.1", color: "#60a5fa" },
+    { id: 20,  name: "Students",    subnet: "192.168.20.0/24", gateway: "192.168.20.1", color: "#34d399" },
+    { id: 30,  name: "Faculty",     subnet: "192.168.30.0/24", gateway: "192.168.30.1", color: "#fb923c" },
+    { id: 40,  name: "Servers",     subnet: "192.168.40.0/24", gateway: "192.168.40.1", color: "#a78bfa" },
+    { id: 50,  name: "GuestWiFi",   subnet: "192.168.50.0/24", gateway: "192.168.50.1", color: "#f87171" },
+    { id: 60,  name: "Library",     subnet: "192.168.60.0/24", gateway: "192.168.60.1", color: "#fbbf24" },
+    { id: 70,  name: "Labs",        subnet: "192.168.70.0/24", gateway: "192.168.70.1", color: "#10b981" },
+    { id: 80,  name: "VoIP",        subnet: "192.168.80.0/24", gateway: "192.168.80.1", color: "#38bdf8" },
+    { id: 90,  name: "CCTV",        subnet: "192.168.90.0/24", gateway: "192.168.90.1", color: "#f472b6" },
+    { id: 99,  name: "Management",  subnet: "192.168.99.0/24", gateway: "192.168.99.1", color: "#94a3b8" },
+    { id: 999, name: "UNUSED-NATIVE", subnet: "N/A",           gateway: "N/A",          color: "#374151" }
+  ],
+
+  nodes: [
+    // ── INTERNET ──────────────────────────────────────────────────────────────
+    {
+      id: "isp", label: "ISP Cloud", layer: "internet", type: "cloud",
+      x: 480, y: 30,
+      ip: "203.0.113.1/30",
+      details: {
+        role: "Illustrative Internet service provider handoff point.",
+        model: "EVE-NG NAT Cloud (pnet0)",
+        interfaces: [{ name: "pnet0", network: "203.0.113.0/30" }],
+        protocols: [],
+        notes: "Example lab model only; actual provider handoff and simulator setup are unverified."
+      }
+    },
+
+    // ── EDGE ──────────────────────────────────────────────────────────────────
+    {
+      id: "rtr-edge", label: "RTR-EDGE", layer: "edge", type: "router",
+      x: 480, y: 130,
+      ip: "WAN: 203.0.113.2 / LAN: 10.0.0.1",
+      details: {
+        role: "Edge router providing Internet connectivity, NAT/PAT, and OSPF route redistribution.",
+        model: "Cisco ISR 4331 / IOSv 15.8 (EVE-NG)",
+        interfaces: [
+          { name: "Gi0/0", desc: "WAN → ISP", ip: "203.0.113.2/30", nat: "outside" },
+          { name: "Gi0/1", desc: "LAN → FW-ASA", ip: "10.0.0.1/30", nat: "inside" }
+        ],
+        protocols: ["OSPF (router-id 1.1.1.1, Area 0)", "NAT/PAT overload", "Static default route → 203.0.113.1", "SSH v2"],
+        security: ["ACL-WAN-IN blocks RFC1918 spoofed sources", "Management restricted to VLAN 99"],
+        notes: "Redistributes default route into OSPF with default-information originate always so core switches learn Internet exit."
+      }
+    },
+    {
+      id: "fw-asa", label: "FW-ASA", layer: "edge", type: "firewall",
+      x: 480, y: 240,
+      ip: "Outside: 10.0.0.2 / Inside: 172.16.0.1 / DMZ: 172.16.10.1",
+      details: {
+        role: "Zone-based stateful firewall with three security zones: outside (Sec=0), inside (Sec=100), DMZ (Sec=50).",
+        model: "Cisco ASA 5516-X / ASAv 9.8 (EVE-NG)",
+        interfaces: [
+          { name: "Gi0/0", desc: "outside", ip: "10.0.0.2/30", security: 0 },
+          { name: "Gi0/1", desc: "inside",  ip: "172.16.0.1/24", security: 100 },
+          { name: "Gi0/2", desc: "dmz",     ip: "172.16.10.1/24", security: 50 }
+        ],
+        protocols: ["Stateful inspection", "PAT overload (campus → Internet)", "Static NAT (DMZ web server)", "SSH v2", "SNMPv3", "Syslog → SRV-SYSLOG"],
+        policies: [
+          "OUTSIDE→IN: permit TCP any→DMZ:80,443 and TCP any→DMZ:25 only — deny all else",
+          "INSIDE→OUT: Guest (V50) denied all campus subnets; Students denied DB:3306; CCTV denied all",
+          "DMZ→IN: Web server may reach DB server on TCP 3306 only"
+        ],
+        notes: "Threat detection and scanning-threat shun enabled. Application inspection for DNS, HTTP, SIP, FTP."
+      }
+    },
+
+    // ── CORE ──────────────────────────────────────────────────────────────────
+    {
+      id: "core-sw1", label: "CORE-SW1", layer: "core", type: "l3switch",
+      x: 320, y: 360,
+      ip: "172.16.0.10 / Mgmt: 192.168.99.2",
+      details: {
+        role: "Primary core L3 switch — HSRP Active for all VLANs, STP Root Primary, OSPF speaker.",
+        model: "Cisco Catalyst 9300 / IOSvL2 16.x (EVE-NG)",
+        interfaces: [
+          { name: "Gi0/0", desc: "→ FW-ASA inside", ip: "172.16.0.10/24" },
+          { name: "Gi0/1–0/2", desc: "EtherChannel members (Port-channel1 → CORE-SW2)", ip: "10.10.10.1/30" },
+          { name: "Gi1/0–1/3", desc: "Trunks → DIST-SW1 through DIST-SW4" },
+          { name: "Gi2/0", desc: "Trunk → ACC-SW-DC (VLAN 40,99)" },
+          { name: "Gi2/1–2/2", desc: "Trunk → WLC-01 (VLAN 20,30,50,99)" },
+          { name: "Vlan10–Vlan99", desc: "SVIs — default gateways for all VLANs" }
+        ],
+        protocols: [
+          "OSPF router-id 2.2.2.2, Area 0, passive-interface default",
+          "HSRP v2 priority 110, preempt, on all 10 VLANs",
+          "LACP EtherChannel (Port-channel1) active mode",
+          "Rapid PVST+ — STP root primary all VLANs",
+          "IP SLA probe → FW inside (172.16.0.1) for HSRP tracking",
+          "DHCP relay (ip helper-address 192.168.40.10) on all client SVIs",
+          "DHCP snooping + Dynamic ARP Inspection on all VLANs"
+        ],
+        notes: "If IP SLA probe to FW fails, HSRP priority drops 30 points (110→80), causing CORE-SW2 to become active."
+      }
+    },
+    {
+      id: "core-sw2", label: "CORE-SW2", layer: "core", type: "l3switch",
+      x: 640, y: 360,
+      ip: "172.16.0.11 / Mgmt: 192.168.99.3",
+      details: {
+        role: "Standby core L3 switch — HSRP Standby for all VLANs, STP Root Secondary, OSPF speaker.",
+        model: "Cisco Catalyst 9300 / IOSvL2 16.x (EVE-NG)",
+        interfaces: [
+          { name: "Gi0/0", desc: "→ FW-ASA inside", ip: "172.16.0.11/24" },
+          { name: "Gi0/1–0/2", desc: "EtherChannel members (Port-channel1 → CORE-SW1)", ip: "10.10.10.2/30" },
+          { name: "Gi1/0–1/3", desc: "Redundant trunks → DIST-SW1 through DIST-SW4" },
+          { name: "Gi2/0", desc: "Redundant trunk → ACC-SW-DC" }
+        ],
+        protocols: [
+          "OSPF router-id 3.3.3.3, Area 0",
+          "HSRP v2 priority 90, NO preempt (stays standby after recovery)",
+          "LACP EtherChannel active mode",
+          "Rapid PVST+ — STP root secondary all VLANs"
+        ],
+        notes: "Identical VLAN/SVI config to CORE-SW1 but with .3 addresses and lower HSRP priority."
+      }
+    },
+
+    // ── DISTRIBUTION ──────────────────────────────────────────────────────────
+    {
+      id: "dist-sw1", label: "DIST-SW1", layer: "distribution", type: "l2switch",
+      x: 120, y: 490,
+      ip: "Mgmt: 192.168.99.30",
+      details: {
+        role: "Distribution switch for Admin and Faculty buildings. Dual uplinks to both core switches.",
+        model: "Cisco Catalyst 2960-X / IOSvL2 15.x (EVE-NG)",
+        vlans: [10, 30, 80, 99],
+        interfaces: [
+          { name: "Gi0/0", desc: "Primary uplink → CORE-SW1", trunk: "V10,30,80,99" },
+          { name: "Gi0/1", desc: "Redundant uplink → CORE-SW2", trunk: "V10,30,80,99" },
+          { name: "Gi1/0", desc: "Downlink → ACC-SW1 (Admin F1)" },
+          { name: "Gi1/1", desc: "Downlink → ACC-SW2 (Admin F2)" },
+          { name: "Gi1/2", desc: "Downlink → ACC-SW3 (Faculty)" }
+        ],
+        protocols: ["Rapid PVST+ STP priority 8192 for zone VLANs", "DHCP snooping", "Dynamic ARP Inspection"],
+        notes: "Root Guard on all downlinks. Native VLAN 999 (unused) on all trunks."
+      }
+    },
+    {
+      id: "dist-sw2", label: "DIST-SW2", layer: "distribution", type: "l2switch",
+      x: 310, y: 490,
+      ip: "Mgmt: 192.168.99.31",
+      details: {
+        role: "Distribution switch for Student building and Computer Labs.",
+        model: "Cisco Catalyst 2960-X / IOSvL2 15.x (EVE-NG)",
+        vlans: [20, 70, 80, 99],
+        interfaces: [
+          { name: "Gi0/0", desc: "Primary uplink → CORE-SW1", trunk: "V20,70,80,99" },
+          { name: "Gi0/1", desc: "Redundant uplink → CORE-SW2", trunk: "V20,70,80,99" },
+          { name: "Gi1/0", desc: "Downlink → ACC-SW4 (Student)" },
+          { name: "Gi1/1", desc: "Downlink → ACC-SW5 (Labs)" }
+        ],
+        protocols: ["Rapid PVST+", "DHCP snooping", "Dynamic ARP Inspection"]
+      }
+    },
+    {
+      id: "dist-sw3", label: "DIST-SW3", layer: "distribution", type: "l2switch",
+      x: 500, y: 490,
+      ip: "Mgmt: 192.168.99.32",
+      details: {
+        role: "Distribution switch for Library and additional lab zones.",
+        model: "Cisco Catalyst 2960-X / IOSvL2 15.x (EVE-NG)",
+        vlans: [60, 70, 99],
+        interfaces: [
+          { name: "Gi0/0", desc: "Primary uplink → CORE-SW1", trunk: "V60,70,99" },
+          { name: "Gi0/1", desc: "Redundant uplink → CORE-SW2", trunk: "V60,70,99" },
+          { name: "Gi1/0", desc: "Downlink → ACC-SW6 (Library)" }
+        ],
+        protocols: ["Rapid PVST+", "DHCP snooping"]
+      }
+    },
+    {
+      id: "dist-sw4", label: "DIST-SW4", layer: "distribution", type: "l2switch",
+      x: 690, y: 490,
+      ip: "Mgmt: 192.168.99.33",
+      details: {
+        role: "Distribution switch for Dormitories and Guest WiFi zone.",
+        model: "Cisco Catalyst 2960-X / IOSvL2 15.x (EVE-NG)",
+        vlans: [20, 50, 99],
+        interfaces: [
+          { name: "Gi0/0", desc: "Primary uplink → CORE-SW1", trunk: "V20,50,99" },
+          { name: "Gi0/1", desc: "Redundant uplink → CORE-SW2", trunk: "V20,50,99" },
+          { name: "Gi1/0", desc: "Downlink → ACC-SW7 (Dorms A/B)" },
+          { name: "Gi1/1", desc: "Downlink → ACC-SW8 (Dorms C/D + Guest)" }
+        ],
+        protocols: ["Rapid PVST+", "DHCP snooping"]
+      }
+    },
+
+    // ── ACCESS ────────────────────────────────────────────────────────────────
+    {
+      id: "acc-sw1", label: "ACC-SW1", layer: "access", type: "l2switch",
+      x: 50,  y: 620,
+      ip: "Mgmt: 192.168.99.50",
+      details: {
+        role: "Access switch — Admin Building Floor 1. Hosts AP-ADM-01 and Admin PC ports.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [10, 80, 99],
+        building: "Admin Building — Floor 1",
+        interfaces: [
+          { name: "Gi0/0", desc: "Uplink → DIST-SW1 (trunk V10,30,80,99)" },
+          { name: "Gi1/0", desc: "AP trunk (native V99, allowed V20,30,50,99) — PoE" },
+          { name: "Gi1/1–1/24", desc: "Access ports VLAN 10 (Admin PCs) + voice VLAN 80" }
+        ],
+        security: ["Port security max 2 MACs, violation restrict", "BPDU Guard global", "Storm control broadcast 20%", "Err-disable recovery 300s"]
+      }
+    },
+    {
+      id: "acc-sw2", label: "ACC-SW2", layer: "access", type: "l2switch",
+      x: 130, y: 620,
+      ip: "Mgmt: 192.168.99.51",
+      details: {
+        role: "Access switch — Admin Building Floor 2.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [10, 80, 99], building: "Admin Building — Floor 2"
+      }
+    },
+    {
+      id: "acc-sw3", label: "ACC-SW3", layer: "access", type: "l2switch",
+      x: 210, y: 620,
+      ip: "Mgmt: 192.168.99.52",
+      details: {
+        role: "Access switch — Faculty Building. Hosts AP-FAC-01.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [30, 80, 99], building: "Faculty Building"
+      }
+    },
+    {
+      id: "acc-sw4", label: "ACC-SW4", layer: "access", type: "l2switch",
+      x: 290, y: 620,
+      ip: "Mgmt: 192.168.99.53",
+      details: {
+        role: "Access switch — Student Building. Hosts AP-STU-01.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [20, 80, 99], building: "Student Building"
+      }
+    },
+    {
+      id: "acc-sw5", label: "ACC-SW5", layer: "access", type: "l2switch",
+      x: 370, y: 620,
+      ip: "Mgmt: 192.168.99.54",
+      details: {
+        role: "Access switch — Computer Labs. Hosts AP-LAB-01.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [70, 80, 99], building: "Computer Labs"
+      }
+    },
+    {
+      id: "acc-sw6", label: "ACC-SW6", layer: "access", type: "l2switch",
+      x: 450, y: 620,
+      ip: "Mgmt: 192.168.99.55",
+      details: {
+        role: "Access switch — Library.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [60, 99], building: "Library"
+      }
+    },
+    {
+      id: "acc-sw7", label: "ACC-SW7", layer: "access", type: "l2switch",
+      x: 570, y: 620,
+      ip: "Mgmt: 192.168.99.56",
+      details: {
+        role: "Access switch — Dormitories A/B. Hosts AP-DORM-01.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [20, 50, 99], building: "Dormitories A/B"
+      }
+    },
+    {
+      id: "acc-sw8", label: "ACC-SW8", layer: "access", type: "l2switch",
+      x: 650, y: 620,
+      ip: "Mgmt: 192.168.99.57",
+      details: {
+        role: "Access switch — Dormitories C/D and Guest zone.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [20, 50, 99], building: "Dormitories C/D + Guest"
+      }
+    },
+    {
+      id: "acc-sw-dc", label: "ACC-SW-DC", layer: "access", type: "l2switch",
+      x: 770, y: 490,
+      ip: "Mgmt: 192.168.99.60",
+      details: {
+        role: "Data Center access switch — connects all 9 servers on VLAN 40. Dual uplinks to both core switches.",
+        model: "Cisco Catalyst 2960 / IOSvL2 15.x (EVE-NG)",
+        vlans: [40, 99],
+        building: "Data Center",
+        interfaces: [
+          { name: "Gi0/0", desc: "Primary uplink → CORE-SW1 (trunk V40,99)" },
+          { name: "Gi0/1", desc: "Redundant uplink → CORE-SW2 (trunk V40,99)" },
+          { name: "Gi1/0–Gi1/8", desc: "Access VLAN 40 — one port per server (PortFast, DHCP trusted)" }
+        ],
+        notes: "No port security on server ports (servers use static IPs). Server ports are DHCP snooping trusted."
+      }
+    },
+
+    // ── WIRELESS ──────────────────────────────────────────────────────────────
+    {
+      id: "wlc-01", label: "WLC-01", layer: "wireless", type: "wlc",
+      x: 860, y: 370,
+      ip: "Mgmt: 192.168.99.20 / AP-mgr: 192.168.99.21",
+      details: {
+        role: "Centralised wireless LAN controller managing all 5 LWAPs via CAPWAP. Pushes SSID config, radio settings, and policies.",
+        model: "Cisco 3504 WLC / vWLC 8.10 (EVE-NG)",
+        interfaces: [
+          { name: "Gi0 (Service Port)", desc: "Management — VLAN 99", ip: "192.168.99.20/24" },
+          { name: "Gi1 (Distribution)", desc: "Data trunk to CORE-SW1 — VLAN 20,30,50,99" },
+          { name: "vlan-faculty",   desc: "WLAN interface — VLAN 30", ip: "192.168.30.5/24" },
+          { name: "vlan-students",  desc: "WLAN interface — VLAN 20", ip: "192.168.20.5/24" },
+          { name: "vlan-guest",     desc: "WLAN interface — VLAN 50", ip: "192.168.50.5/24" }
+        ],
+        ssids: [
+          { name: "Faculty-WiFi",  vlan: 30, security: "WPA3-Enterprise (802.1X + SAE)", pmf: "Required", peerBlock: false, sessionTimeout: "8h" },
+          { name: "Student-WiFi",  vlan: 20, security: "WPA2-PSK (AES-CCMP)", psk: "[REPLACE_WITH_PRIVATE_PSK]", peerBlock: true,  sessionTimeout: "8h" },
+          { name: "Guest-WiFi",    vlan: 50, security: "Open + Web Auth (captive portal)", peerBlock: true,  sessionTimeout: "2h", isolated: true }
+        ],
+        apDiscovery: ["DHCP Option 43 (hex f1:04:c0:a8:63:14) — primary", "DNS: cisco-capwap-controller.university.edu → 192.168.99.20 — secondary"],
+        protocols: ["CAPWAP (UDP 5246/5247)", "SNMPv3", "Syslog → 192.168.40.16", "NTP → 192.168.40.17"]
+      }
+    },
+    {
+      id: "ap-adm-01", label: "AP-ADM-01", layer: "wireless", type: "ap",
+      x: 50,  y: 730,
+      ip: "DHCP (VLAN 99)",
+      details: {
+        role: "Lightweight AP — Admin Building. Broadcasts all three SSIDs. Joins WLC via CAPWAP.",
+        model: "Cisco Aironet 1832i (⚠ design intent — not verified in running lab)",
+        building: "Admin Building",
+        connectedSwitch: "ACC-SW1 Gi1/0",
+        switchPort: "Trunk, native VLAN 99, allowed 20,30,50,99, PortFast trunk",
+        ssids: ["Faculty-WiFi (VLAN 30)", "Student-WiFi (VLAN 20)", "Guest-WiFi (VLAN 50)"]
+      }
+    },
+    {
+      id: "ap-fac-01", label: "AP-FAC-01", layer: "wireless", type: "ap",
+      x: 210, y: 730,
+      ip: "DHCP (VLAN 99)",
+      details: {
+        role: "Lightweight AP — Faculty Building. Primary SSID is Faculty-WiFi (WPA3-Enterprise).",
+        model: "Cisco Aironet 1832i (⚠ design intent — not verified in running lab)",
+        building: "Faculty Building",
+        connectedSwitch: "ACC-SW3 Gi1/0",
+        switchPort: "Trunk, native VLAN 99, allowed 20,30,50,99",
+        ssids: ["Faculty-WiFi (VLAN 30)", "Student-WiFi (VLAN 20)", "Guest-WiFi (VLAN 50)"]
+      }
+    },
+    {
+      id: "ap-stu-01", label: "AP-STU-01", layer: "wireless", type: "ap",
+      x: 290, y: 730,
+      ip: "DHCP (VLAN 99)",
+      details: {
+        role: "Lightweight AP — Student Building.",
+        model: "Cisco Aironet 1832i (⚠ design intent — not verified in running lab)",
+        building: "Student Building",
+        connectedSwitch: "ACC-SW4 Gi1/0",
+        ssids: ["Faculty-WiFi (VLAN 30)", "Student-WiFi (VLAN 20)", "Guest-WiFi (VLAN 50)"]
+      }
+    },
+    {
+      id: "ap-lab-01", label: "AP-LAB-01", layer: "wireless", type: "ap",
+      x: 370, y: 730,
+      ip: "DHCP (VLAN 99)",
+      details: {
+        role: "Lightweight AP — Computer Labs.",
+        model: "Cisco Aironet 1832i (⚠ design intent — not verified in running lab)",
+        building: "Computer Labs",
+        connectedSwitch: "ACC-SW5 Gi1/0",
+        ssids: ["Student-WiFi (VLAN 20)", "Guest-WiFi (VLAN 50)"]
+      }
+    },
+    {
+      id: "ap-dorm-01", label: "AP-DORM-01", layer: "wireless", type: "ap",
+      x: 570, y: 730,
+      ip: "DHCP (VLAN 99)",
+      details: {
+        role: "Lightweight AP — Dormitory Complex.",
+        model: "Cisco Aironet 1832i (⚠ design intent — not verified in running lab)",
+        building: "Dormitories A/B",
+        connectedSwitch: "ACC-SW7 Gi1/0",
+        ssids: ["Student-WiFi (VLAN 20)", "Guest-WiFi (VLAN 50)"]
+      }
+    },
+
+    // ── SERVERS ───────────────────────────────────────────────────────────────
+    {
+      id: "srv-dhcp", label: "SRV-DHCP", layer: "servers", type: "server",
+      x: 640, y: 730,
+      ip: "192.168.40.10",
+      details: {
+        role: "ISC DHCP server providing address pools for all 10 VLANs. Includes DHCP Option 43 in VLAN 99 scope for AP discovery.",
+        os: "Ubuntu 22.04 LTS", software: "ISC DHCP Server",
+        resources: "1 vCPU, 1 GB RAM (⚠ EVE-NG design sizing)"
+      }
+    },
+    {
+      id: "srv-dns", label: "SRV-DNS", layer: "servers", type: "server",
+      x: 700, y: 730,
+      ip: "192.168.40.11",
+      details: {
+        role: "BIND9 authoritative and recursive DNS for university.edu. Includes cisco-capwap-controller A record for AP WLC discovery.",
+        os: "Ubuntu 22.04 LTS", software: "BIND9",
+        resources: "1 vCPU, 1 GB RAM (⚠ EVE-NG design sizing)"
+      }
+    },
+    {
+      id: "srv-web", label: "SRV-WEB", layer: "servers", type: "server",
+      x: 760, y: 730,
+      ip: "192.168.40.12 / DMZ: 172.16.10.12",
+      details: {
+        role: "Campus web portal. Accessible from Internet via static NAT through ASA DMZ. Internal IP 192.168.40.12, DMZ IP 172.16.10.12.",
+        os: "Ubuntu 22.04 LTS", software: "Apache / Nginx",
+        resources: "1 vCPU, 1 GB RAM (⚠ EVE-NG design sizing)"
+      }
+    },
+    {
+      id: "srv-mail", label: "SRV-MAIL", layer: "servers", type: "server",
+      x: 820, y: 730,
+      ip: "192.168.40.13",
+      details: {
+        role: "Campus email — SMTP inbound from Internet (via ASA permit TCP any→DMZ:25), IMAP/POP3 for internal clients.",
+        os: "Ubuntu 22.04 LTS", software: "Postfix + Dovecot",
+        resources: "1 vCPU, 1 GB RAM (⚠ EVE-NG design sizing)"
+      }
+    },
+    {
+      id: "srv-file", label: "SRV-FILE", layer: "servers", type: "server",
+      x: 640, y: 800,
+      ip: "192.168.40.14",
+      details: {
+        role: "Shared file storage via SMB and NFS. Students and guests are denied access to this server (ACL blocks TCP 445 and 2049 from VLAN 20).",
+        os: "Ubuntu 22.04 LTS", software: "Samba 4",
+        resources: "1 vCPU, 1 GB RAM (⚠ EVE-NG design sizing)"
+      }
+    },
+    {
+      id: "srv-db", label: "SRV-DB", layer: "servers", type: "server",
+      x: 700, y: 800,
+      ip: "192.168.40.15",
+      details: {
+        role: "Campus database. Access restricted at both core ACL (denies TCP 3306 from VLAN 20/70) and ASA. Only SRV-WEB (DMZ) may reach this server.",
+        os: "Ubuntu 22.04 LTS", software: "MySQL 8.0",
+        resources: "1 vCPU, 2 GB RAM (⚠ EVE-NG design sizing)"
+      }
+    },
+    {
+      id: "srv-syslog", label: "SRV-SYSLOG", layer: "servers", type: "monitor",
+      x: 760, y: 800,
+      ip: "192.168.40.16",
+      details: {
+        role: "Central syslog receiver — UDP 514 from all network devices (routers, switches, ASA, WLC). Stores per-device log files in /var/log/campus-network/<HOSTNAME>/.",
+        os: "Ubuntu 22.04 LTS", software: "rsyslog 8.x",
+        resources: "2 vCPU, 2 GB RAM (⚠ EVE-NG design sizing)",
+        notes: "All IOS devices configured with: logging host 192.168.40.16 transport udp port 514 | logging trap informational | service timestamps log datetime msec localtime show-timezone"
+      }
+    },
+    {
+      id: "srv-ntp", label: "SRV-NTP", layer: "servers", type: "monitor",
+      x: 820, y: 800,
+      ip: "192.168.40.17",
+      details: {
+        role: "Campus Stratum 2 NTP server. Syncs upstream from pool.ntp.org. All network devices sync from this server (ntp server 192.168.40.17 prefer).",
+        os: "Ubuntu 22.04 LTS", software: "ntpsec",
+        resources: "1 vCPU, 512 MB RAM (⚠ EVE-NG design sizing)",
+        stratum: "2 (upstream: pool.ntp.org Stratum 1 → devices become Stratum 3)"
+      }
+    },
+    {
+      id: "srv-mon", label: "SRV-MON", layer: "servers", type: "monitor",
+      x: 880, y: 800,
+      ip: "192.168.40.18",
+      details: {
+        role: "SNMP monitoring — Zabbix 6.0 LTS polling all 20+ devices via SNMPv3 AuthPriv. Receives SNMP traps. Monitors CPU, memory, interfaces, OSPF state, HSRP state.",
+        os: "Ubuntu 22.04 LTS", software: "Zabbix 6.0 LTS",
+        resources: "2 vCPU, 2 GB RAM (⚠ EVE-NG design sizing)",
+        snmp: "SNMPv3 user: snmpv3user | Auth: SHA | Privacy: AES-128 | Group: MONITOR-GRP authPriv"
+      }
+    },
+
+    // ── CLIENTS ───────────────────────────────────────────────────────────────
+    {
+      id: "pc-admin-01", label: "PC-ADMIN-01", layer: "clients", type: "pc",
+      x: 50,  y: 820,
+      ip: "DHCP (VLAN 10)",
+      details: { role: "VPCS test client — Admin VLAN 10. Used to verify Admin network connectivity and ACL pass.", building: "Admin Building" }
+    },
+    {
+      id: "pc-fac-01", label: "PC-FAC-01", layer: "clients", type: "pc",
+      x: 210, y: 820,
+      ip: "DHCP (VLAN 30)",
+      details: { role: "VPCS test client — Faculty VLAN 30.", building: "Faculty Building" }
+    },
+    {
+      id: "pc-stu-01", label: "PC-STU-01", layer: "clients", type: "pc",
+      x: 290, y: 820,
+      ip: "DHCP (VLAN 20)",
+      details: { role: "VPCS test client — Student VLAN 20. Used to verify Student ACL blocks (DB port 3306, Admin VLAN).", building: "Student Building" }
+    },
+    {
+      id: "pc-lab-01", label: "PC-LAB-01", layer: "clients", type: "pc",
+      x: 370, y: 820,
+      ip: "DHCP (VLAN 70)",
+      details: { role: "VPCS test client — Labs VLAN 70.", building: "Computer Labs" }
+    },
+    {
+      id: "pc-guest-01", label: "PC-GUEST-01", layer: "clients", type: "pc",
+      x: 650, y: 820,
+      ip: "DHCP (VLAN 50)",
+      details: { role: "VPCS test client — Guest VLAN 50. Used to verify Guest isolation: cannot ping any campus subnet, can reach Internet.", building: "Dorms C/D + Guest" }
+    }
+  ],
+
+  links: [
+    // Internet → Edge
+    { id: "l1",  source: "isp",       target: "rtr-edge",   type: "wan",       label: "203.0.113.0/30", desc: "WAN handoff" },
+    { id: "l2",  source: "rtr-edge",  target: "fw-asa",     type: "p2p",       label: "10.0.0.0/30",   desc: "Edge → Firewall" },
+    // Firewall → Core
+    { id: "l3",  source: "fw-asa",    target: "core-sw1",   type: "l3",        label: "172.16.0.0/24", desc: "FW inside → Core 1" },
+    { id: "l4",  source: "fw-asa",    target: "core-sw2",   type: "l3",        label: "172.16.0.0/24", desc: "FW inside → Core 2" },
+    // Core peer link
+    { id: "l5",  source: "core-sw1",  target: "core-sw2",   type: "lacp",      label: "LACP Port-ch1 · 10.10.10.0/30", desc: "EtherChannel peer link" },
+    // Core → Distribution
+    { id: "l6",  source: "core-sw1",  target: "dist-sw1",   type: "trunk",     label: "V10,30,80,99" },
+    { id: "l7",  source: "core-sw1",  target: "dist-sw2",   type: "trunk",     label: "V20,70,80,99" },
+    { id: "l8",  source: "core-sw1",  target: "dist-sw3",   type: "trunk",     label: "V60,70,99" },
+    { id: "l9",  source: "core-sw1",  target: "dist-sw4",   type: "trunk",     label: "V20,50,99" },
+    { id: "l10", source: "core-sw2",  target: "dist-sw1",   type: "trunk",     label: "Redundant" },
+    { id: "l11", source: "core-sw2",  target: "dist-sw2",   type: "trunk",     label: "Redundant" },
+    { id: "l12", source: "core-sw2",  target: "dist-sw3",   type: "trunk",     label: "Redundant" },
+    { id: "l13", source: "core-sw2",  target: "dist-sw4",   type: "trunk",     label: "Redundant" },
+    // Core → DC Access
+    { id: "l14", source: "core-sw1",  target: "acc-sw-dc",  type: "trunk",     label: "V40,99" },
+    { id: "l15", source: "core-sw2",  target: "acc-sw-dc",  type: "trunk",     label: "Redundant" },
+    // Core → WLC
+    { id: "l16", source: "core-sw1",  target: "wlc-01",     type: "trunk",     label: "V20,30,50,99" },
+    // Distribution → Access
+    { id: "l17", source: "dist-sw1",  target: "acc-sw1",    type: "trunk",     label: "V10,30,80,99" },
+    { id: "l18", source: "dist-sw1",  target: "acc-sw2",    type: "trunk",     label: "V10,30,80,99" },
+    { id: "l19", source: "dist-sw1",  target: "acc-sw3",    type: "trunk",     label: "V30,80,99" },
+    { id: "l20", source: "dist-sw2",  target: "acc-sw4",    type: "trunk",     label: "V20,80,99" },
+    { id: "l21", source: "dist-sw2",  target: "acc-sw5",    type: "trunk",     label: "V70,80,99" },
+    { id: "l22", source: "dist-sw3",  target: "acc-sw6",    type: "trunk",     label: "V60,99" },
+    { id: "l23", source: "dist-sw4",  target: "acc-sw7",    type: "trunk",     label: "V20,50,99" },
+    { id: "l24", source: "dist-sw4",  target: "acc-sw8",    type: "trunk",     label: "V20,50,99" },
+    // Access → APs (CAPWAP)
+    { id: "l25", source: "acc-sw1",   target: "ap-adm-01",  type: "capwap",    label: "PoE trunk native V99" },
+    { id: "l26", source: "acc-sw3",   target: "ap-fac-01",  type: "capwap",    label: "PoE trunk native V99" },
+    { id: "l27", source: "acc-sw4",   target: "ap-stu-01",  type: "capwap",    label: "PoE trunk native V99" },
+    { id: "l28", source: "acc-sw5",   target: "ap-lab-01",  type: "capwap",    label: "PoE trunk native V99" },
+    { id: "l29", source: "acc-sw7",   target: "ap-dorm-01", type: "capwap",    label: "PoE trunk native V99" },
+    // Access → Clients
+    { id: "l30", source: "acc-sw1",   target: "pc-admin-01",type: "access",    label: "Access VLAN 10" },
+    { id: "l31", source: "acc-sw3",   target: "pc-fac-01",  type: "access",    label: "Access VLAN 30" },
+    { id: "l32", source: "acc-sw4",   target: "pc-stu-01",  type: "access",    label: "Access VLAN 20" },
+    { id: "l33", source: "acc-sw5",   target: "pc-lab-01",  type: "access",    label: "Access VLAN 70" },
+    { id: "l34", source: "acc-sw8",   target: "pc-guest-01",type: "access",    label: "Access VLAN 50" },
+    // DC Access → Servers
+    { id: "l35", source: "acc-sw-dc", target: "srv-dhcp",   type: "access",    label: "VLAN 40" },
+    { id: "l36", source: "acc-sw-dc", target: "srv-dns",    type: "access",    label: "VLAN 40" },
+    { id: "l37", source: "acc-sw-dc", target: "srv-web",    type: "access",    label: "VLAN 40" },
+    { id: "l38", source: "acc-sw-dc", target: "srv-mail",   type: "access",    label: "VLAN 40" },
+    { id: "l39", source: "acc-sw-dc", target: "srv-file",   type: "access",    label: "VLAN 40" },
+    { id: "l40", source: "acc-sw-dc", target: "srv-db",     type: "access",    label: "VLAN 40" },
+    { id: "l41", source: "acc-sw-dc", target: "srv-syslog", type: "access",    label: "VLAN 40" },
+    { id: "l42", source: "acc-sw-dc", target: "srv-ntp",    type: "access",    label: "VLAN 40" },
+    { id: "l43", source: "acc-sw-dc", target: "srv-mon",    type: "access",    label: "VLAN 40" }
+  ]
+};
+
+if (typeof module !== 'undefined') module.exports = TOPOLOGY;
+
+</script>
+<script>
+// ═══════════════════ APPLICATION LOGIC ═══════════════════
+(function(){
+'use strict';
+
+// ── NODE ICONS & COLORS ───────────────────────────────────
+const NODE_META = {
+  cloud:    { icon:'☁',  color:'#3b82f6', labelColor:'#1d4ed8' },
+  router:   { icon:'⬡',  color:'#f97316', labelColor:'#c2410c' },
+  firewall: { icon:'🛡', color:'#ef4444', labelColor:'#b91c1c' },
+  l3switch: { icon:'⬡',  color:'#8b5cf6', labelColor:'#6d28d9' },
+  l2switch: { icon:'⬢',  color:'#10b981', labelColor:'#047857' },
+  wlc:      { icon:'📡', color:'#ec4899', labelColor:'#be185d' },
+  ap:       { icon:'📶', color:'#f472b6', labelColor:'#be185d' },
+  server:   { icon:'🖥', color:'#0ea5e9', labelColor:'#0369a1' },
+  monitor:  { icon:'📊', color:'#2563eb', labelColor:'#1d4ed8' },
+  pc:       { icon:'💻', color:'#64748b', labelColor:'#475569' }
+};
+
+const LAYER_ORDER = ['internet','edge','core','distribution','access','wireless','servers','clients'];
+const LAYER_Y = { internet:30, edge:130, core:280, distribution:430, access:580, wireless:680, servers:760, clients:850 };
+
+// ── STATE ─────────────────────────────────────────────────
+let state = {
+  scale: 1, tx: 0, ty: 0,
+  selectedNode: null,
+  hiddenLayers: new Set(),
+  searchQuery: '',
+  darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches
+};
+
+// ── LAYOUT: assign Y from layer, spread X ────────────────
+function layoutNodes(nodes) {
+  const byLayer = {};
+  nodes.forEach(n => {
+    if (!byLayer[n.layer]) byLayer[n.layer] = [];
+    byLayer[n.layer].push(n);
+  });
+  const result = {};
+  const canvasW = 960;
+  nodes.forEach(n => {
+    const peers = byLayer[n.layer];
+    const idx = peers.indexOf(n);
+    const count = peers.length;
+    const step = Math.min(100, (canvasW - 80) / count);
+    const startX = (canvasW - (count - 1) * step) / 2;
+    result[n.id] = {
+      x: n.x || startX + idx * step,
+      y: n.y || (LAYER_Y[n.layer] || 500)
+    };
+  });
+  return result;
+}
+
+// ── INIT ──────────────────────────────────────────────────
+function init() {
+  applyTheme();
+  buildLayerFilters();
+  buildTopology();
+  buildMinimap();
+  buildOverview();
+  buildVlanTable();
+  buildLinkedIn();
+  bindEvents();
+  fitView();
+}
+
+// ── THEME ─────────────────────────────────────────────────
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.darkMode ? 'dark' : 'light');
+  document.getElementById('btn-theme').textContent = state.darkMode ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  state.darkMode = !state.darkMode;
+  applyTheme();
+  rebuildTopology();
+}
+
+// ── LAYER FILTERS ─────────────────────────────────────────
+function buildLayerFilters() {
+  const container = document.getElementById('layer-filters');
+  container.innerHTML = '';
+  TOPOLOGY.layers.forEach(l => {
+    const pill = document.createElement('div');
+    pill.className = 'layer-pill';
+    pill.dataset.layer = l.id;
+    pill.style.borderColor = l.color + '55';
+    pill.style.color = state.darkMode ? l.darkColor : l.labelColor || l.color;
+    const dot = document.createElement('span');
+    dot.className = 'lp-dot';
+    dot.style.background = state.darkMode ? l.darkColor : l.color;
+    pill.appendChild(dot);
+    pill.appendChild(document.createTextNode(l.labelFa));
+    pill.addEventListener('click', () => toggleLayer(l.id, pill));
+    container.appendChild(pill);
+  });
+}
+
+function toggleLayer(layerId, pill) {
+  if (state.hiddenLayers.has(layerId)) {
+    state.hiddenLayers.delete(layerId);
+    pill.classList.remove('hidden');
+  } else {
+    state.hiddenLayers.add(layerId);
+    pill.classList.add('hidden');
+  }
+  updateVisibility();
+}
+
+function updateVisibility() {
+  const svg = document.getElementById('topo-svg');
+  TOPOLOGY.nodes.forEach(n => {
+    const g = svg.querySelector(`[data-node="${n.id}"]`);
+    if (g) g.style.display = state.hiddenLayers.has(n.layer) ? 'none' : '';
+  });
+  TOPOLOGY.links.forEach(l => {
+    const el = svg.querySelector(`[data-link="${l.id}"]`);
+    if (!el) return;
+    const src = TOPOLOGY.nodes.find(n => n.id === l.source);
+    const tgt = TOPOLOGY.nodes.find(n => n.id === l.target);
+    const hide = state.hiddenLayers.has(src?.layer) || state.hiddenLayers.has(tgt?.layer);
+    el.style.display = hide ? 'none' : '';
+    const lbl = svg.querySelector(`[data-link-label="${l.id}"]`);
+    if (lbl) lbl.style.display = hide ? 'none' : '';
+  });
+}
+
+// ── TOPOLOGY BUILD ────────────────────────────────────────
+const POS = {};
+function buildTopology() {
+  TOPOLOGY.nodes.forEach(n => {
+    POS[n.id] = { x: n.x, y: n.y };
+  });
+  renderTopology();
+}
+
+function rebuildTopology() {
+  renderTopology();
+}
+
+function renderTopology() {
+  const svg = document.getElementById('topo-svg');
+  const W = 980, H = 920;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.width = W + 'px';
+  svg.style.height = H + 'px';
+
+  const dark = state.darkMode;
+
+  // ── LAYER BANDS ──
+  const bandsG = document.getElementById('layer-bands');
+  bandsG.innerHTML = '';
+  const bandColors = {
+    internet:     dark ? 'rgba(59,130,246,.04)' : 'rgba(219,234,254,.35)',
+    edge:         dark ? 'rgba(239,68,68,.04)'  : 'rgba(254,226,226,.35)',
+    core:         dark ? 'rgba(139,92,246,.04)' : 'rgba(237,233,254,.35)',
+    distribution: dark ? 'rgba(16,185,129,.04)' : 'rgba(209,250,229,.35)',
+    access:       dark ? 'rgba(249,115,22,.04)' : 'rgba(255,237,213,.35)',
+    wireless:     dark ? 'rgba(236,72,153,.04)' : 'rgba(252,231,243,.35)',
+    servers:      dark ? 'rgba(14,165,233,.04)' : 'rgba(224,242,254,.35)',
+    clients:      dark ? 'rgba(100,116,139,.04)': 'rgba(241,245,249,.35)'
+  };
+  const bandBounds = { internet:[0,90], edge:[91,200], core:[201,410], distribution:[411,560],
+    access:[561,670], wireless:[671,760], servers:[761,860], clients:[861,920] };
+  Object.entries(bandBounds).forEach(([lyr, [y0,y1]]) => {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',0); rect.setAttribute('y',y0);
+    rect.setAttribute('width',W); rect.setAttribute('height',y1-y0);
+    rect.setAttribute('fill', bandColors[lyr] || 'transparent');
+    bandsG.appendChild(rect);
+    const lyrObj = TOPOLOGY.layers.find(l=>l.id===lyr);
+    if (lyrObj) {
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x', 8);
+      txt.setAttribute('y', (y0 + y1) / 2);
+      txt.setAttribute('class','layer-band-label');
+      txt.textContent = lyrObj.labelFa;
+      bandsG.appendChild(txt);
+    }
+  });
+
+  // ── LINKS ──
+  const linkG  = document.getElementById('link-layer');
+  const lblG   = document.getElementById('link-label-layer');
+  linkG.innerHTML = ''; lblG.innerHTML = '';
+
+  TOPOLOGY.links.forEach(lnk => {
+    const sp = POS[lnk.source], tp = POS[lnk.target];
+    if (!sp || !tp) return;
+    const isRedundant = lnk.label === 'Redundant';
+    const mx = (sp.x + tp.x) / 2, my = (sp.y + tp.y) / 2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const dx = tp.x - sp.x, dy = tp.y - sp.y;
+    const cx = mx + dy * 0.08, cy = my - dx * 0.08;
+    path.setAttribute('d', `M${sp.x},${sp.y} Q${cx},${cy} ${tp.x},${tp.y}`);
+    path.setAttribute('class', `link ${isRedundant ? 'redundant' : lnk.type}`);
+    path.setAttribute('data-link', lnk.id);
+    path.setAttribute('data-src', lnk.source);
+    path.setAttribute('data-tgt', lnk.target);
+    linkG.appendChild(path);
+
+    if (lnk.label && !isRedundant) {
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x', mx); txt.setAttribute('y', my - 4);
+      txt.setAttribute('class','link-label');
+      txt.setAttribute('data-link-label', lnk.id);
+      txt.textContent = lnk.label;
+      lblG.appendChild(txt);
+    }
+  });
+
+  // ── NODES ──
+  const nodeG = document.getElementById('node-layer');
+  nodeG.innerHTML = '';
+  TOPOLOGY.nodes.forEach(n => {
+    const p = POS[n.id];
+    if (!p) return;
+    const meta = NODE_META[n.type] || NODE_META.server;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','node-group');
+    g.setAttribute('data-node', n.id);
+    g.setAttribute('transform', `translate(${p.x},${p.y})`);
+    g.addEventListener('click', e => { e.stopPropagation(); selectNode(n.id); });
+    g.addEventListener('touchend', e => { e.preventDefault(); selectNode(n.id); });
+
+    // bg rect
+    const W_NODE = 56, H_NODE = 40;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('class','node-bg');
+    rect.setAttribute('x', -W_NODE/2); rect.setAttribute('y', -H_NODE/2);
+    rect.setAttribute('width', W_NODE); rect.setAttribute('height', H_NODE);
+    rect.setAttribute('fill', meta.color + (dark ? '25' : '18'));
+    rect.setAttribute('stroke', meta.color + (dark ? 'aa' : '77'));
+    rect.setAttribute('stroke-width','1.5');
+    rect.setAttribute('rx','6');
+    g.appendChild(rect);
+
+    // icon
+    const icon = document.createElementNS('http://www.w3.org/2000/svg','text');
+    icon.setAttribute('class','node-icon');
+    icon.setAttribute('x',0); icon.setAttribute('y',-3);
+    icon.setAttribute('fill', meta.color);
+    icon.textContent = meta.icon;
+    g.appendChild(icon);
+
+    // label
+    const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('class','node-label');
+    lbl.setAttribute('x',0); lbl.setAttribute('y', H_NODE/2 + 4);
+    lbl.textContent = n.label;
+    g.appendChild(lbl);
+
+    // short IP
+    if (n.ip) {
+      const shortIp = n.ip.split(' ')[0].replace('/24','').replace('/30','');
+      const ip = document.createElementNS('http://www.w3.org/2000/svg','text');
+      ip.setAttribute('class','node-ip');
+      ip.setAttribute('x',0); ip.setAttribute('y', H_NODE/2 + 16);
+      ip.textContent = shortIp.length > 18 ? '' : shortIp;
+      g.appendChild(ip);
+    }
+
+    nodeG.appendChild(g);
+  });
+
+  updateVisibility();
+  applyHighlight();
+}
+
+// ── SELECT / HIGHLIGHT ────────────────────────────────────
+function selectNode(id) {
+  const wasSame = state.selectedNode === id;
+  state.selectedNode = wasSame ? null : id;
+  applyHighlight();
+  if (state.selectedNode) showPanel(state.selectedNode);
+  else hidePanel();
+}
+
+function applyHighlight() {
+  const svg = document.getElementById('topo-svg');
+  const sel = state.selectedNode;
+
+  if (!sel) {
+    svg.querySelectorAll('.node-group').forEach(g => g.classList.remove('selected','dimmed'));
+    svg.querySelectorAll('.link').forEach(l => l.classList.remove('highlighted','dimmed'));
+    return;
+  }
+
+  const connectedIds = new Set([sel]);
+  const connectedLinks = new Set();
+  TOPOLOGY.links.forEach(l => {
+    if (l.source === sel || l.target === sel) {
+      connectedIds.add(l.source);
+      connectedIds.add(l.target);
+      connectedLinks.add(l.id);
+    }
+  });
+
+  svg.querySelectorAll('.node-group').forEach(g => {
+    const nid = g.dataset.node;
+    g.classList.toggle('selected', nid === sel);
+    g.classList.toggle('dimmed', !connectedIds.has(nid));
+  });
+
+  svg.querySelectorAll('.link').forEach(l => {
+    const lid = l.dataset.link;
+    l.classList.toggle('highlighted', connectedLinks.has(lid));
+    l.classList.toggle('dimmed', !connectedLinks.has(lid));
+  });
+}
+
+// ── PANEL ─────────────────────────────────────────────────
+function showPanel(nodeId) {
+  const node = TOPOLOGY.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+  const panel = document.getElementById('detail-panel');
+  const lyr = TOPOLOGY.layers.find(l => l.id === node.layer);
+  const meta = NODE_META[node.type] || NODE_META.server;
+
+  // header
+  const hdr = document.getElementById('panel-header');
+  hdr.innerHTML = `
+    <span class="panel-type-badge" style="background:${meta.color}22;color:${meta.color}">${node.type.toUpperCase()}</span>
+    <div class="panel-title">${node.label}</div>
+    <div class="panel-subtitle">${lyr ? lyr.label : ''} Layer${node.ip ? ' · <span>' + node.ip + '</span>' : ''}</div>
+  `;
+
+  // body — info tab
+  const body = document.getElementById('panel-body');
+  const d = node.details || {};
+  let html = '';
+
+  if (d.role) html += `<div class="detail-section">
+    <div class="detail-section-title">Role</div>
+    <div style="font-size:.82rem;color:var(--text2);line-height:1.7;font-family:var(--font-en)">${d.role}</div>
+  </div>`;
+
+  if (d.model) html += `<div class="detail-section">
+    <div class="detail-section-title">Model / Image</div>
+    <div class="detail-row"><span class="detail-val">${d.model}</span></div>
+  </div>`;
+
+  const rows = [];
+  if (d.os) rows.push(['OS', d.os]);
+  if (d.software) rows.push(['Software', d.software]);
+  if (d.resources) rows.push(['Resources', d.resources]);
+  if (d.building) rows.push(['Building', d.building]);
+  if (d.stratum) rows.push(['NTP Stratum', d.stratum]);
+  if (d.snmp) rows.push(['SNMP', d.snmp]);
+  if (rows.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">Specifications</div>`;
+    rows.forEach(([k,v]) => html += `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`);
+    html += `</div>`;
+  }
+
+  if (d.interfaces?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">Interfaces</div>`;
+    d.interfaces.forEach(i => {
+      html += `<div class="detail-row">
+        <span class="detail-key mono">${i.name}</span>
+        <span class="detail-val">${i.desc||''}${i.ip ? ' · <code class="mono">'+i.ip+'</code>' : ''}${i.trunk ? ' · <span class="tag vlan">'+i.trunk+'</span>' : ''}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (d.vlans?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">VLANs Carried</div><div class="tag-list">`;
+    d.vlans.forEach(v => {
+      const vobj = TOPOLOGY.vlans.find(x => x.id === v);
+      html += `<span class="tag vlan">VLAN ${v}${vobj ? ' – ' + vobj.name : ''}</span>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if (d.ssids?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">SSIDs</div>`;
+    d.ssids.forEach(s => {
+      html += `<div class="ssid-card">
+        <div class="ssid-name">${s.name}</div>
+        <div class="ssid-meta">
+          VLAN ${s.vlan} · ${s.security}${s.psk ? '<br>PSK: <code class="mono">' + s.psk + '</code>' : ''}
+          ${s.peerBlock ? '<br>Peer blocking: enabled' : ''}
+          ${s.sessionTimeout ? '<br>Session timeout: ' + s.sessionTimeout : ''}
+          ${s.isolated ? '<br><strong>Full client + network isolation</strong>' : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (d.protocols?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">Protocols</div><div class="tag-list">`;
+    d.protocols.forEach(p => html += `<span class="tag protocol">${p}</span>`);
+    html += `</div></div>`;
+  }
+
+  if (d.security?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">Layer 2 Security</div>`;
+    d.security.forEach(s => html += `<div class="detail-row"><span class="detail-val">· ${s}</span></div>`);
+    html += `</div>`;
+  }
+
+  if (d.policies?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">Firewall Policies</div>`;
+    d.policies.forEach(p => html += `<div class="detail-row"><span class="detail-val" style="font-size:.77rem">· ${p}</span></div>`);
+    html += `</div>`;
+  }
+
+  if (d.apDiscovery?.length) {
+    html += `<div class="detail-section"><div class="detail-section-title">AP Discovery</div>`;
+    d.apDiscovery.forEach(a => html += `<div class="detail-row"><span class="detail-val" style="font-size:.77rem">· ${a}</span></div>`);
+    html += `</div>`;
+  }
+
+  if (d.notes) html += `<div class="warning-note">${d.notes}</div>`;
+  if (node.details?.model?.includes('⚠')) html += `<div class="warning-note">Unverified — this value is a design intent, not a confirmed running-environment specification.</div>`;
+
+  body.innerHTML = html;
+
+  // connections tab
+  const connsDiv = document.getElementById('panel-conns');
+  const links = TOPOLOGY.links.filter(l => l.source === nodeId || l.target === nodeId);
+  let cHtml = '<div class="detail-section"><div class="detail-section-title">Device Connections</div>';
+  if (!links.length) { cHtml += '<div style="color:var(--text4);font-size:.82rem;padding:8px 0">No connections found</div>'; }
+  links.forEach(lnk => {
+    const otherId = lnk.source === nodeId ? lnk.target : lnk.source;
+    const other = TOPOLOGY.nodes.find(n => n.id === otherId);
+    const dir = lnk.source === nodeId ? '→' : '←';
+    cHtml += `<div class="conn-item" onclick="selectNode('${otherId}')">
+      <span class="conn-arrow">${dir}</span>
+      <span class="conn-label">${other?.label || otherId}</span>
+      <span class="conn-type">${lnk.label || lnk.type}</span>
+    </div>`;
+  });
+  cHtml += '</div>';
+  connsDiv.innerHTML = cHtml;
+
+  // config tab
+  const cfgDiv = document.getElementById('panel-config');
+  cfgDiv.innerHTML = buildConfigSnippet(node);
+
+  panel.classList.remove('hidden');
+}
+
+function buildConfigSnippet(node) {
+  const snips = {
+    'rtr-edge': `<div class="detail-section"><div class="detail-section-title">Key IOS Configuration</div><pre style="background:var(--bg3);padding:12px;border-radius:6px;font-size:.72rem;overflow-x:auto;color:var(--text2);line-height:1.8;font-family:var(--mono)">hostname RTR-EDGE
+ip routing
+!
+interface GigabitEthernet0/0
+ ip address 203.0.113.2 255.255.255.252
+ ip nat outside
+ no shutdown
+!
+interface GigabitEthernet0/1
+ ip address 10.0.0.1 255.255.255.252
+ ip nat inside
+ no shutdown
+!
+ip nat inside source list NAT-ACL interface Gi0/0 overload
+ip access-list standard NAT-ACL
+ permit 192.168.0.0 0.0.255.255
+ permit 172.16.0.0 0.0.255.255
+!
+router ospf 1
+ router-id 1.1.1.1
+ network 10.0.0.0 0.0.0.3 area 0
+ default-information originate always
+!
+logging host 192.168.40.16 transport udp port 514
+ntp server 192.168.40.17 prefer
+snmp-server group MONITOR-GRP v3 priv</pre></div>`,
+
+    'fw-asa': `<div class="detail-section"><div class="detail-section-title">Illustrative ASA Configuration</div><pre style="background:var(--bg3);padding:12px;border-radius:6px;font-size:.72rem;overflow-x:auto;color:var(--text2);line-height:1.8;font-family:var(--mono)">interface GigabitEthernet0/0
+ nameif outside
+ security-level 0
+ ip address 10.0.0.2 255.255.255.252
+!
+interface GigabitEthernet0/1
+ nameif inside
+ security-level 100
+ ip address 172.16.0.1 255.255.255.0
+!
+interface GigabitEthernet0/2
+ nameif dmz
+ security-level 50
+ ip address 172.16.10.1 255.255.255.0
+!
+! Guest isolation rule:
+access-list ACL-INSIDE-OUT extended deny ip
+ 192.168.50.0 255.255.255.0
+ 192.168.0.0 255.255.0.0 log
+!
+nat (inside,outside) source dynamic
+ OBJ-CAMPUS-ALL interface</pre></div>`,
+
+    'core-sw1': `<div class="detail-section"><div class="detail-section-title">Illustrative CORE-SW1 Configuration</div><pre style="background:var(--bg3);padding:12px;border-radius:6px;font-size:.72rem;overflow-x:auto;color:var(--text2);line-height:1.8;font-family:var(--mono)">ip routing
+spanning-tree vlan 10-99 root primary
+!
+interface Port-channel1
+ no switchport
+ ip address 10.10.10.1 255.255.255.252
+ ip ospf 1 area 0
+!
+interface Vlan20
+ ip address 192.168.20.2 255.255.255.0
+ ip helper-address 192.168.40.10
+ ip access-group ACL-STUDENTS-IN in
+ standby version 2
+ standby 20 ip 192.168.20.1
+ standby 20 priority 110
+ standby 20 preempt delay minimum 30
+ standby 20 track 1 decrement 30
+!
+router ospf 1
+ router-id 2.2.2.2
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface Port-channel1</pre></div>`,
+
+    'wlc-01': `<div class="detail-section"><div class="detail-section-title">Illustrative WLC Configuration</div><pre style="background:var(--bg3);padding:12px;border-radius:6px;font-size:.72rem;overflow-x:auto;color:var(--text2);line-height:1.8;font-family:var(--mono)">config interface create vlan-faculty 30
+config interface address vlan-faculty
+  192.168.30.5 255.255.255.0 192.168.30.1
+!
+config wlan create 1 Faculty-WiFi Faculty-WiFi
+config wlan security wpa wpa3 enable 1
+config wlan security wpa akm 802.1x enable 1
+config wlan security pmf required 1
+config wlan enable 1
+!
+config wlan create 2 Student-WiFi Student-WiFi
+config wlan security wpa akm psk enable 2
+config wlan security wpa wpa2 psk set-key ascii
+  [REPLACE_WITH_PRIVATE_PSK] 2
+config wlan peer-blocking drop 2
+config wlan enable 2
+!
+config wlan create 3 Guest-WiFi Guest-WiFi
+config wlan security web-auth enable 3
+config wlan peer-blocking drop 3
+config wlan session-timeout 3 7200
+config wlan enable 3
+!
+config logging syslog host 192.168.40.16
+config time ntp server 192.168.40.17 1</pre></div>`
+  };
+
+  const snip = snips[node.id];
+  if (snip) return snip;
+
+  return `<div class="detail-section"><div class="detail-section-title">Illustrative Monitoring Block</div>
+    <pre style="background:var(--bg3);padding:12px;border-radius:6px;font-size:.72rem;overflow-x:auto;color:var(--text2);line-height:1.8;font-family:var(--mono)">! === UNIVERSAL MONITORING BLOCK ===
+! Apply to: ${node.label}
+logging host 192.168.40.16 transport udp port 514
+logging trap informational
+logging source-interface Vlan99
+service timestamps log datetime msec localtime show-timezone
+ntp server 192.168.40.17 prefer
+ntp source Vlan99
+snmp-server group MONITOR-GRP v3 priv
+snmp-server user snmpv3user MONITOR-GRP v3
+  auth sha [AUTH_PASSWORD] priv aes 128 [PRIV_PASSWORD]
+snmp-server host 192.168.40.18 version 3 priv snmpv3user
+line vty 0 15
+ transport input ssh
+ ip access-class MGMT-SSH-ACL in</pre></div>`;
+}
+
+function hidePanel() {
+  document.getElementById('detail-panel').classList.add('hidden');
+}
+window.selectNode = selectNode;
+
+// ── PAN / ZOOM ────────────────────────────────────────────
+let panStart = null;
+function bindPanZoom() {
+  const wrap = document.getElementById('topo-canvas-wrap');
+  const root = document.getElementById('topo-root');
+  function applyTransform() {
+    root.setAttribute('transform', `translate(${state.tx},${state.ty}) scale(${state.scale})`);
+    updateMinimap();
+  }
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    const newScale = Math.min(3, Math.max(0.25, state.scale * factor));
+    state.tx = mx - (mx - state.tx) * (newScale / state.scale);
+    state.ty = my - (my - state.ty) * (newScale / state.scale);
+    state.scale = newScale;
+    applyTransform();
+  }, { passive: false });
+  wrap.addEventListener('mousedown', e => {
+    if (e.target.closest('.node-group')) return;
+    panStart = { x: e.clientX - state.tx, y: e.clientY - state.ty };
+    wrap.classList.add('panning');
+  });
+  window.addEventListener('mousemove', e => {
+    if (!panStart) return;
+    state.tx = e.clientX - panStart.x;
+    state.ty = e.clientY - panStart.y;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { panStart = null; wrap.classList.remove('panning'); });
+  // touch
+  let lastTouchDist = null;
+  wrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 1 && !e.target.closest('.node-group')) {
+      panStart = { x: e.touches[0].clientX - state.tx, y: e.touches[0].clientY - state.ty };
+    }
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist = Math.hypot(dx, dy);
+    }
+  }, { passive: true });
+  wrap.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && panStart) {
+      state.tx = e.touches[0].clientX - panStart.x;
+      state.ty = e.touches[0].clientY - panStart.y;
+      applyTransform();
+    }
+    if (e.touches.length === 2 && lastTouchDist) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      state.scale = Math.min(3, Math.max(0.25, state.scale * dist / lastTouchDist));
+      lastTouchDist = dist;
+      applyTransform();
+    }
+  }, { passive: true });
+  wrap.addEventListener('touchend', () => { panStart = null; lastTouchDist = null; });
+
+  applyTransform();
+}
+
+function fitView() {
+  const wrap = document.getElementById('topo-canvas-wrap');
+  const W = wrap.clientWidth || 800, H = wrap.clientHeight || 600;
+  const svgW = 980, svgH = 920;
+  const scaleX = (W - 40) / svgW, scaleY = (H - 40) / svgH;
+  state.scale = Math.min(scaleX, scaleY, 1);
+  state.tx = (W - svgW * state.scale) / 2;
+  state.ty = 20;
+  document.getElementById('topo-root').setAttribute('transform',
+    `translate(${state.tx},${state.ty}) scale(${state.scale})`);
+  updateMinimap();
+}
+
+// ── MINIMAP ───────────────────────────────────────────────
+function buildMinimap() {
+  const mmSvg = document.getElementById('minimap-svg');
+  const scale = 140/980;
+  TOPOLOGY.links.forEach(lnk => {
+    const sp = POS[lnk.source], tp = POS[lnk.target];
+    if (!sp||!tp) return;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',sp.x*scale); line.setAttribute('y1',sp.y*scale*90/920);
+    line.setAttribute('x2',tp.x*scale); line.setAttribute('y2',tp.y*scale*90/920);
+    line.setAttribute('stroke','#94a3b8'); line.setAttribute('stroke-width','.4');
+    mmSvg.appendChild(line);
+  });
+  TOPOLOGY.nodes.forEach(n => {
+    const p = POS[n.id]; if(!p) return;
+    const meta = NODE_META[n.type]||NODE_META.server;
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',p.x*scale); c.setAttribute('cy',p.y*scale*90/920);
+    c.setAttribute('r','2.5'); c.setAttribute('fill',meta.color);
+    mmSvg.appendChild(c);
+  });
+}
+
+function updateMinimap() {
+  const wrap = document.getElementById('topo-canvas-wrap');
+  const vp = document.getElementById('minimap-viewport');
+  const W = wrap.clientWidth||800, H = wrap.clientHeight||600;
+  const mmW = 140, mmH = 90;
+  const svgW = 980, svgH = 920;
+  const scaleX = mmW/svgW, scaleY = mmH/svgH;
+  const vpX = (-state.tx / state.scale) * scaleX;
+  const vpY = (-state.ty / state.scale) * scaleY;
+  const vpW = (W / state.scale) * scaleX;
+  const vpH = (H / state.scale) * scaleY;
+  vp.style.left = Math.max(0,vpX)+'px';
+  vp.style.top  = Math.max(0,vpY)+'px';
+  vp.style.width  = Math.min(mmW,vpW)+'px';
+  vp.style.height = Math.min(mmH,vpH)+'px';
+}
+
+// ── SEARCH ────────────────────────────────────────────────
+function bindSearch() {
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { results.style.display='none'; return; }
+    const matches = TOPOLOGY.nodes.filter(n =>
+      n.label.toLowerCase().includes(q) ||
+      n.id.toLowerCase().includes(q) ||
+      (n.ip||'').toLowerCase().includes(q) ||
+      (n.details?.role||'').toLowerCase().includes(q) ||
+      (n.layer||'').toLowerCase().includes(q)
+    ).slice(0,8);
+    results.innerHTML = '';
+    if (!matches.length) { results.style.display='none'; return; }
+    matches.forEach(n => {
+      const lyr = TOPOLOGY.layers.find(l=>l.id===n.layer);
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML = `<span>${n.label}</span><span class="sri-badge">${lyr?.label||n.layer}</span>`;
+      item.addEventListener('click', () => {
+        results.style.display = 'none';
+        input.value = '';
+        selectNode(n.id);
+        panToNode(n.id);
+      });
+      results.appendChild(item);
+    });
+    results.style.display = 'block';
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#search-bar')) results.style.display = 'none';
+  });
+}
+
+function panToNode(id) {
+  const p = POS[id]; if(!p) return;
+  const wrap = document.getElementById('topo-canvas-wrap');
+  const W = wrap.clientWidth||800, H = wrap.clientHeight||600;
+  state.tx = W/2 - p.x*state.scale;
+  state.ty = H/2 - p.y*state.scale;
+  document.getElementById('topo-root').setAttribute('transform',
+    `translate(${state.tx},${state.ty}) scale(${state.scale})`);
+  updateMinimap();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────
+function buildOverview() {
+  // stats cards
+  const cards = document.getElementById('overview-cards');
+  const stats = [
+    { num: '37', label: 'Nodes in this conceptual topology' },
+    { num: '10', label: 'VLANs for traffic segmentation' },
+    { num: '3', label: 'Wireless SSIDs with distinct security tiers' },
+    { num: '9', label: 'Linux servers in the VLAN 40 server farm' },
+    { num: '5', label: 'LWAPs managed centrally via CAPWAP' },
+    { num: 'OSPF', label: 'Single-area routing protocol' }
+  ];
+  cards.innerHTML = stats.map(s=>`<div class="ov-card"><div class="ov-num">${s.num}</div><div class="ov-label">${s.label}</div></div>`).join('');
+
+  // flow
+  const flow = document.getElementById('flow-row');
+  const steps = [
+    { label:'ISP Cloud', color:'#60a5fa' },
+    { label:'RTR-EDGE\nNAT/PAT', color:'#fb923c' },
+    { label:'FW-ASA\n3-Zone', color:'#f87171' },
+    { label:'CORE-SW1/2\nHSRP', color:'#a78bfa' },
+    { label:'DIST-SW1-4\nTrunk', color:'#34d399' },
+    { label:'ACC-SWs\nPort Security', color:'#fb923c' },
+    { label:'End Devices\n& Servers', color:'#38bdf8' }
+  ];
+  flow.innerHTML = steps.map((s,i)=>`
+    ${i>0?'<span class="flow-arrow">→</span>':''}
+    <div class="flow-node" style="background:${s.color}22;border:1px solid ${s.color}55;color:${s.color}">${s.label.replace('\n','<br>')}</div>
+  `).join('');
+
+  // design decisions
+  const dd = document.getElementById('design-decisions');
+  const decisions = [
+    { t: 'Three-Tier Hierarchy', d: 'Core, Distribution, and Access layers provide modularity, fault isolation, and a clear upgrade path independent of each layer.' },
+    { t: 'HSRP v2 on Core Switches', d: 'Sub-second gateway failover for all 10 VLANs. CORE-SW1 is active (priority 110, preempt). IP SLA tracks the firewall uplink.' },
+    { t: 'OSPF Area 0', d: 'Single-area OSPF on RTR-EDGE, CORE-SW1, and CORE-SW2. Default route redistributed with default-information originate always.' },
+    { t: 'Centralised Wireless (CAPWAP)', d: 'WLC-01 pushes all SSID policy, radio settings, and VLAN mappings to 5 LWAPs. Zero-touch AP replacement.' },
+    { t: 'SNMPv3 AuthPriv Monitoring', d: 'All devices polled by Zabbix using SHA auth + AES-128 privacy. No community strings in cleartext.' },
+    { t: 'Guest VLAN Isolation (3-layer)', d: 'ACL-GUEST-IN on Vlan50 SVI + ASA ACL + WLC peer-blocking together enforce complete guest isolation.' }
+  ];
+  dd.innerHTML = decisions.map(d=>`<div class="dd-card"><h4 class="en">${d.t}</h4><p class="en">${d.d}</p></div>`).join('');
+}
+
+// ── VLAN TABLE ────────────────────────────────────────────
+function buildVlanTable() {
+  const tbl = document.getElementById('vlan-table');
+  const headers = ['VLAN', 'Name', 'Subnet', 'Gateway (HSRP VIP)', 'DHCP Range', 'Used By'];
+  const dhcp = {10:'.50–.200',20:'.50–.250',30:'.50–.200',40:'Static',50:'.10–.250',60:'.50–.200',70:'.50–.250',80:'.10–.200',90:'Static',99:'Static',999:'N/A'};
+  const usage = {10:'Admin PCs and management staff',20:'Students, dorms, and Student-WiFi',30:'Faculty and Faculty-WiFi',40:'Campus servers — static IPs only',50:'Guest wireless — fully isolated',60:'Library terminals and catalogue systems',70:'Computer lab workstations',80:'IP telephony (VoIP handsets)',90:'CCTV cameras — fully isolated',99:'Network device management, WLC, APs',999:'Unused native VLAN (trunk security)'};
+
+  tbl.innerHTML = `<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>` +
+    `<tbody>${TOPOLOGY.vlans.map(v=>`<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-en)"><span style="width:10px;height:10px;border-radius:50%;background:${v.color};display:inline-block;flex-shrink:0"></span><strong>${v.id}</strong></span></td>
+      <td class="en">${v.name}</td>
+      <td class="en mono" style="font-size:.78rem">${v.subnet}</td>
+      <td class="en mono" style="font-size:.78rem">${v.gateway}</td>
+      <td class="en">${dhcp[v.id]||'–'}</td>
+      <td style="font-size:.78rem">${usage[v.id]||'–'}</td>
+    </tr>`).join('')}</tbody>`;
+}
+
+// ── LINKEDIN ──────────────────────────────────────────────
+const LI_TEXT = `Campus Network Design — Interactive Topology
+
+I created an interactive view of a conceptual campus network, from the Internet edge and firewall to the core, distribution, access, wireless, and server layers. It explores segmentation, routing, redundancy, and access policy through a topology you can navigate and inspect.
+
+This is a design study, not a claim of production deployment or measured performance. I welcome feedback on the architecture and trade-offs.
+
+#NetworkEngineering #NetworkDesign #CampusNetworking`;
+
+function buildLinkedIn() {
+  const body = document.getElementById('linkedin-body');
+  const paras = LI_TEXT.split('\n\n');
+  let html = '';
+  paras.forEach(p => {
+    if (p.includes(':') && p.split('\n')[0].endsWith(':')) {
+      const [title,...rest] = p.split('\n');
+      html += `<h2 class="en">${title}</h2><p class="en">${rest.join('<br>')}</p>`;
+    } else {
+      html += `<p class="en">${p}</p>`;
+    }
+  });
+  const skills = ['Topology Design','VLAN Segmentation','OSPF','HSRP','LACP','ACLs','Wireless Architecture','Monitoring Design'];
+  html += `<h2>Topics Illustrated</h2><div class="li-skills">${skills.map(s=>`<span class="li-skill">${s}</span>`).join('')}</div>`;
+  body.innerHTML = html;
+
+  document.getElementById('li-copy').addEventListener('click', () => {
+    navigator.clipboard.writeText(LI_TEXT).then(() => {
+      document.getElementById('li-copy').textContent = '✓ Copied!';
+      setTimeout(()=>{ document.getElementById('li-copy').textContent='📋 Copy to clipboard'; },2000);
+    });
+  });
+}
+
+// ── VIEWS ─────────────────────────────────────────────────
+function showView(id) {
+  document.querySelectorAll('.view-panel').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+window.closeView = function(id) { document.getElementById(id).classList.remove('active'); };
+
+// ── TAB SWITCHING ─────────────────────────────────────────
+function bindTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+tab).classList.add('active');
+    });
+  });
+}
+
+// ── BIND ALL EVENTS ───────────────────────────────────────
+function bindEvents() {
+  document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+  document.getElementById('btn-fit').addEventListener('click', fitView);
+  document.getElementById('btn-overview').addEventListener('click', ()=>showView('view-overview'));
+  document.getElementById('btn-vlans').addEventListener('click', ()=>showView('view-vlans'));
+  document.getElementById('btn-linkedin').addEventListener('click', ()=>showView('view-linkedin'));
+  document.getElementById('panel-close').addEventListener('click', ()=>{ hidePanel(); state.selectedNode=null; applyHighlight(); });
+  document.getElementById('topo-container').addEventListener('click', e=>{
+    if (!e.target.closest('.node-group')&&!e.target.closest('#detail-panel')&&!e.target.closest('#search-bar')) {
+      state.selectedNode=null; applyHighlight(); hidePanel();
+    }
+  });
+  document.getElementById('btn-zoom-in').addEventListener('click', ()=>{ state.scale=Math.min(3,state.scale*1.25); document.getElementById('topo-root').setAttribute('transform',`translate(${state.tx},${state.ty}) scale(${state.scale})`); updateMinimap(); });
+  document.getElementById('btn-zoom-out').addEventListener('click', ()=>{ state.scale=Math.max(.25,state.scale*.8); document.getElementById('topo-root').setAttribute('transform',`translate(${state.tx},${state.ty}) scale(${state.scale})`); updateMinimap(); });
+  document.getElementById('btn-zoom-fit').addEventListener('click', fitView);
+  bindPanZoom();
+  bindSearch();
+  bindTabs();
+  window.addEventListener('resize', fitView);
+}
+
+// ── START ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+})();
+
+</script>
+</body>
+</html>
